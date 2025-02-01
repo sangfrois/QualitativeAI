@@ -38,7 +38,7 @@ if __name__ == "__main__":
     audio_filepath = 'data/psilocybin/audio/Kesem_00.mp4' # Changed to .mp4
     embeddings_filepath = 'data/embeddings/whisper_chunked_mean_pca_embeddings.npy' # Path to save/load embeddings
     emotion_results_filepath = 'data/emotion_results.csv' # Path to save emotion results
-    max_duration = 30.0
+    max_duration = 60.0
     n_components_pca = 10 # Number of PCA components
 
     print("Preprocessing audio...") # Indicate preprocessing start
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         mean_pca_embeddings_concatenated = np.load(embeddings_filepath)
     else:
         print("Computing chunked embeddings...")
-        chunk_duration = 10.0  # seconds
+        chunk_duration = 30.0  # seconds
         overlap_ratio = 0.5
         chunk_samples = int(chunk_duration * feature_extractor.sampling_rate)
         overlap_samples = int(chunk_samples * overlap_ratio)
