@@ -104,7 +104,7 @@ def plot_correlation(correlations, n_components_pca):
 
 def main():
     embeddings_filepath = 'data/embeddings/whisper_chunked_mean_pca_embeddings.npy' # Path to embeddings
-    json_files_path = 'data/psilocybin/processed/' # Path to processed transcript JSONs
+    json_files_path = 'data/psilocybin/processed/*01.json' # Path to processed transcript JSONs
     n_components_pca = 10 # Number of PCA components, should match embedding_visualization.py
 
     try:
