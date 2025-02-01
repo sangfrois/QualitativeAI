@@ -25,7 +25,8 @@ if __name__ == "__main__":
     # Save emotion results to CSV
     emotion_df = pd.DataFrame(columns=['emotion', 'timestamp'])
 
-    audio_filepath = 'data/psilocybin/audio/Kesem_00.mp4' # Changed to .mp4
+    audio_filepath = 'data/psilocybin/audio/Kesem_01.mp4' # Changed to .mp4
+    filename = os.path.basename(audio_filepath).split('.')[0] # Extract filename without extension
     embeddings_filepath = 'data/embeddings/whisper_chunked_mean_pca_embeddings.npy' # Path to save/load embeddings
     emotion_results_filepath = 'data/emotion_results.csv' # Path to save emotion results
     max_duration = 60.0
@@ -84,7 +85,7 @@ if __name__ == "__main__":
     plt.ylabel("Mean PCA Component")
     plt.yticks(np.arange(n_components_pca), [f'PC{i+1}' for i in range(n_components_pca)]) # Set y-ticks to PCA component names
     plt.title(f"Heatmap of Mean PCA Embeddings (10s chunks, 50% overlap)") # Updated title
-    plt.savefig("whisper_chunked_mean_pca_heatmap.png") # Filename for heatmap
+    plt.savefig(f"whisper_chunked_mean_pca_heatmap_{filename}.png") # Filename for heatmap
     plt.close()
 
     print("Heatmap of Whisper embeddings (PCA components) saved as whisper_chunked_mean_pca_heatmap.png") # Updated print message
