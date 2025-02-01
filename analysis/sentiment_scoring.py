@@ -39,7 +39,7 @@ def process_transcript(transcript):
         utterance['sequence'] = i + 1 # Assign sequence number based on order
     return transcript
 
-def plot_sentiment_analysis(transcripts):
+def plot_sentiment_analysis(transcripts, smoothing_window=20): # Added smoothing_window parameter with default value
     plt.figure(figsize=(20, 15))
 
     all_speakers = set()
@@ -53,44 +53,31 @@ def plot_sentiment_analysis(transcripts):
 
     for i, (file, utterances) in enumerate(transcripts.items(), 1):
         plt.subplot(3, 2, i)
+        ax = plt.gca() # Get current axes
         df = pd.DataFrame(utterances)
         df['sequence'] = pd.to_numeric(df['sequence'], errors='coerce')
         df = df.dropna(subset=['sequence', 'sentiment'])
         df = df.sort_values('sequence')
 
-        # Removed timestamp related code
-        # timestamps = []
-        # for idx, row in df.iterrows():
-        #     if 'timestamp' in row['metadata'] and row['metadata']['timestamp']:
-        #         ts = row['metadata']['timestamp']
-        #         if 'start' in ts and ts['start'] is not None: # Check if start is not None
-        #             timestamps.append((row['sequence'], ts['start']))
-        #             start_seq = row['sequence']
-        #             end_seq = row['sequence'] + 1
-        #             plt.axvspan(start_seq, end_seq, color='gray', alpha=0.2, label='Timestamped Segment' if not plt.gca().get_legend() else None) # Label only once
-
 
         for speaker in df['speaker'].unique():
             speaker_data = df[df['speaker'] == speaker]
-            plt.plot(speaker_data['sequence'], speaker_data['sentiment'], marker='o', linestyle='-', label=speaker, color=color_map[speaker])
+            speaker_data['smoothed_sentiment'] = speaker_data['sentiment'].rolling(window=smoothing_window, min_periods=1, center=True).mean() # Apply smoothing
 
-        # Removed timestamp related code
-        # if timestamps:
-        #     tick_positions, tick_labels = zip(*timestamps)
-        #     tick_labels = [f"{float(ts):.2f}" for ts in tick_labels] # Format timestamps to 2 decimal places
-        #     plt.xticks(tick_positions, tick_labels, rotation=45, ha='right') # Rotate and align x-axis labels
+            plt.plot(speaker_data['sequence'], speaker_data['smoothed_sentiment'], linestyle='-', label=speaker, color=color_map[speaker]) # Plot smoothed sentiment
+
 
         plt.title(f"Sentiment Analysis - {file}")
         plt.xlabel("Utterance Index") # Updated X-axis label to Utterance Index
-        plt.ylabel("Sentiment Score")
+        plt.ylabel("Sentiment Score (Smoothed)") # Updated Y-axis label to indicate smoothing
 
         # Get existing legend handles and labels to avoid duplicates
-        handles, labels = plt.gca().get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels() # Use ax to get legend handles
         by_label = dict(zip(labels, handles)) # Remove duplicate labels
-        plt.legend(by_label.values(), by_label.keys(), title="Speaker/Time Info", loc='best') # Updated legend title
+        plt.legend(by_label.values(), by_label.keys(), title="Speaker", loc='best') # Updated legend title
 
     plt.tight_layout()
-    plt.savefig("sentiment_analysis_time.png", dpi=300)
+    plt.savefig("sentiment_analysis_smoothed.png", dpi=300) # Changed filename to indicate smoothed
     plt.close()
 
 def main():
@@ -114,8 +101,8 @@ def main():
         except Exception as e:
             print(f"Error processing {json_file}: {str(e)}")
 
-    plot_sentiment_analysis(transcripts)
-    print("\nSentiment analysis plot saved as sentiment_analysis_time.png")
+    plot_sentiment_analysis(transcripts, smoothing_window=7) # Call plot_sentiment_analysis with smoothing_window
+    print("\nSentiment analysis plot saved as sentiment_analysis_smoothed.png") # Updated saved filename in print statement
 
 if __name__ == "__main__":
     nltk.download('vader_lexicon')
