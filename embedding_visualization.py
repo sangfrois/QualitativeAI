@@ -4,6 +4,7 @@ import librosa
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from sklearn.decomposition import PCA # Import PCA
 
 def preprocess_audio(audio_path, feature_extractor, max_duration=30.0):
     audio_array, sampling_rate = librosa.load(audio_path, sr=feature_extractor.sampling_rate)
@@ -33,6 +34,7 @@ if __name__ == "__main__":
     audio_filepath = 'data/psilocybin/audio/Kesem_00.mp4'
     embeddings_filepath = 'data/embeddings/whisper_embeddings.npy' # Path to save/load embeddings
     max_duration = 30.0
+    n_components_pca = 10 # Number of PCA components
 
     if os.path.exists(embeddings_filepath):
         print(f"Loading embeddings from {embeddings_filepath}")
@@ -49,10 +51,12 @@ if __name__ == "__main__":
         embeddings = hidden_states.squeeze(0).cpu().numpy()
         np.save(embeddings_filepath, embeddings) # Save embeddings
 
-    reduced_embeddings = embeddings[:, :60] # Reduce to first 60 dimensions
+    # Apply PCA for dimensionality reduction
+    pca = PCA(n_components=n_components_pca)
+    reduced_embeddings = pca.fit_transform(embeddings)
 
     # Emotion Inference (same as before)
-    inputs = preprocess_audio(audio_filepath, feature_extractor, max_duration) # Need to preprocess again for emotion inference, or save inputs too. Re-preprocessing is simpler for now.
+    inputs = preprocess_audio(audio_filepath, feature_extractor, max_duration) # Need to preprocess again for emotion inference
     inputs = {key: value.to(device) for key, value in inputs.items()}
     with torch.no_grad():
         outputs = model(**inputs) # No need for hidden states here, just logits
@@ -60,15 +64,15 @@ if __name__ == "__main__":
     predicted_id = torch.argmax(logits, dim=-1).item()
     predicted_label = id2label[predicted_id]
 
-    # Heatmap of Embeddings (Reduced Dimensions)
+    # Heatmap of PCA Reduced Embeddings
     plt.figure(figsize=(12, 8))
-    plt.imshow(reduced_embeddings.T, aspect='auto', origin='lower', interpolation='nearest', cmap='viridis') # Use reduced_embeddings
+    plt.imshow(reduced_embeddings.T, aspect='auto', origin='lower', interpolation='nearest', cmap='viridis') # Use PCA reduced embeddings
     plt.colorbar(format='%+2.0f dB')
     plt.xlabel("Time Step (Audio Frames)")
-    plt.ylabel("Embedding Dimension (Reduced to 60)") # Updated Y-axis label
-    plt.title("Heatmap of Whisper Embeddings (First 60 Dimensions)") # Updated title
-    plt.savefig("wav2vec2_embeddings_heatmap_reduced_dim.png") # Updated filename
+    plt.ylabel(f"PCA Components (Top {n_components_pca})") # Updated Y-axis label
+    plt.title(f"Heatmap of Whisper Embeddings (PCA - Top {n_components_pca} Components)") # Updated title
+    plt.savefig("whisper_embeddings_pca_heatmap.png") # Updated filename
     plt.close()
 
-    print("Heatmap of Whisper embeddings (first 60 dimensions) saved as wav2vec2_embeddings_heatmap_reduced_dim.png") # Updated print message
+    print("Heatmap of Whisper embeddings (PCA reduced) saved as whisper_embeddings_pca_heatmap.png") # Updated print message
     print(f"{predicted_label} emotion detected from audio file.")
