@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     audio_filepath = 'data/psilocybin/audio/Kesem_00.mp4'
     embeddings_filepath = 'data/embeddings/whisper_embeddings.npy' # Path to save/load embeddings
-    max_duration = 30.0
+    max_duration = 600.0
     n_components_pca = 10 # Number of PCA components
 
     if os.path.exists(embeddings_filepath):
