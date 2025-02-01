@@ -55,13 +55,13 @@ if __name__ == "__main__":
 
             with torch.no_grad():
                 outputs = model(**inputs, output_hidden_states=True)
+            
             # perform inference
-
             logits = outputs.logits
             predicted_id = torch.argmax(logits, dim=-1).item()
             predicted_label = id2label[predicted_id]
-            emotion_df = emotion_df.append({'timestamp': start_sample / sr,
-                                             'emotion': predicted_label}, ignore_index=True)
+            # add row to emotion_df
+            emotion_df.loc[len(emotion_df)] = [predicted_label, start_sample / sr] # Add row to emotion_df
             emotion_df.to_csv(emotion_results_filepath, index=False)
             print(f"Emotion  {emotion_results_filepath}") # Confirmation message
 
