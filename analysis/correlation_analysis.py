@@ -5,6 +5,8 @@ import glob
 import json
 from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
 
 def load_embeddings(embeddings_filepath):
     """Loads PCA embeddings from a .npy file."""
@@ -12,12 +14,13 @@ def load_embeddings(embeddings_filepath):
         raise FileNotFoundError(f"Embeddings file not found: {embeddings_filepath}")
     return np.load(embeddings_filepath)
 
-def load_transcripts_and_sentiments(json_files_path):
-    """Loads transcripts and extracts sentiment scores and timestamps."""
+def load_transcripts_and_compute_sentiments(json_files_path):
+    """Loads transcripts and computes sentiment scores for each segment."""
     json_files = glob.glob(os.path.join(json_files_path, '*.json'))
     if not json_files:
         raise FileNotFoundError(f"No JSON transcript files found in: {json_files_path}")
 
+    sia = SentimentIntensityAnalyzer()
     all_sentiments = {}
     for json_file in json_files:
         filename = os.path.basename(json_file)
@@ -29,13 +32,13 @@ def load_transcripts_and_sentiments(json_files_path):
         for segment in transcript_data['segments']:
             start_time = segment['start']
             end_time = segment['end']
-            sentiment_score = segment.get('sentiment', None) # Assuming sentiment is pre-calculated and saved in JSON
-            if sentiment_score is not None:
-                sentiments.append({'start': start_time, 'end': end_time, 'sentiment': sentiment_score})
+            text = segment['text']
+            sentiment_score = sia.polarity_scores(text)['compound'] # Compute sentiment score here
+            sentiments.append({'start': start_time, 'end': end_time, 'sentiment': sentiment_score})
         all_sentiments[filename] = sentiments
     return all_sentiments
 
-def align_sentiments_to_embeddings(embeddings, sentiments, chunk_duration=30.0, overlap_ratio=0.5, sampling_rate=16000): # Assuming 16kHz sampling rate, adjust if needed
+def align_sentiments_to_embeddings(embeddings, all_sentiments, chunk_duration=30.0, overlap_ratio=0.5, sampling_rate=16000): # Assuming 16kHz sampling rate, adjust if needed
     """
     Aligns sentiment scores to embedding chunks by averaging sentiment scores within each chunk.
     """
@@ -44,6 +47,12 @@ def align_sentiments_to_embeddings(embeddings, sentiments, chunk_duration=30.0, 
     step_samples = chunk_samples - overlap_samples
     aligned_sentiments = []
     num_chunks = len(embeddings)
+
+    # Assuming we are using sentiments from the first transcript file.
+    # You might need to adjust this if you have multiple transcript files and need specific matching.
+    transcript_filename = list(all_sentiments.keys())[0]
+    sentiments = all_sentiments[transcript_filename]
+
 
     for chunk_index in range(num_chunks):
         start_sample = chunk_index * step_samples
@@ -100,14 +109,10 @@ def main():
 
     try:
         embeddings = load_embeddings(embeddings_filepath)
-        all_sentiments = load_transcripts_and_sentiments(json_files_path)
+        all_sentiments = load_transcripts_and_compute_sentiments(json_files_path) # Use the new function
 
-        # Assuming you want to correlate with sentiment from the first transcript file found.
-        # You might need to adjust this logic if you have multiple audio/transcript pairs and need specific matching.
-        transcript_filename = list(all_sentiments.keys())[0] # Get the first filename
-        sentiments = all_sentiments[transcript_filename]
+        aligned_sentiments = align_sentiments_to_embeddings(embeddings, all_sentiments) # Pass all_sentiments
 
-        aligned_sentiments = align_sentiments_to_embeddings(embeddings, sentiments)
         correlations = compute_correlation(embeddings, aligned_sentiments)
 
         print("\nCorrelation coefficients between PCA components and sentiment:")
@@ -123,4 +128,5 @@ def main():
         print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
+    nltk.download('vader_lexicon')
     main()
