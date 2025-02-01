@@ -26,10 +26,6 @@ def analyze_sentiment(text):
 
 def standardize_speaker(speaker):
     speaker = speaker.strip().rstrip(':')
-    if speaker.startswith('SPEAKER_01'):
-        return 'Interviewer'
-    elif speaker.startswith('SPEAKER_00'):
-        return 'Patient'
     return speaker # Keep original speaker label if not SPEAKER_01 or SPEAKER_00
 
 def process_transcript(transcript):
@@ -39,8 +35,8 @@ def process_transcript(transcript):
         utterance['sequence'] = i + 1 # Assign sequence number based on order
     return transcript
 
-def plot_sentiment_analysis(transcripts, smoothing_window=20): # Added smoothing_window parameter with default value
-    plt.figure(figsize=(20, 15))
+def plot_sentiment_analysis(transcripts, smoothing_window=150): # Added smoothing_window parameter with default value
+    plt.figure(figsize=(16, 7))
 
     all_speakers = set()
     for utterances in transcripts.values():
@@ -52,7 +48,7 @@ def plot_sentiment_analysis(transcripts, smoothing_window=20): # Added smoothing
     color_map.update(dict(zip(other_speakers, colors)))
 
     for i, (file, utterances) in enumerate(transcripts.items(), 1):
-        plt.subplot(3, 2, i)
+        plt.subplot(1, 2, i)
         ax = plt.gca() # Get current axes
         df = pd.DataFrame(utterances)
         df['sequence'] = pd.to_numeric(df['sequence'], errors='coerce')
