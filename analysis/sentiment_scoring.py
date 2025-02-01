@@ -96,7 +96,8 @@ def align_emotions_to_utterances(transcripts, emotion_results_df):
 
 
 def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150): # Added aligned_emotions
-    plt.figure(figsize=(16, 7))
+    num_files = len(transcripts)
+    plt.figure(figsize=(16, 7 * num_files)) # Adjust figure height based on number of files
 
     all_speakers = set()
     for utterances in transcripts.values():
@@ -130,7 +131,7 @@ def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150)
 
     try:
         for i, (file, utterances) in enumerate(transcripts.items(), 1):
-            plt.subplot(1, 2, i)
+            plt.subplot(num_files, 1, i) # Changed to vertical subplots
             ax = plt.gca() # Get current axes
             df = pd.DataFrame(utterances)
             df['sequence'] = pd.to_numeric(df['sequence'], errors='coerce')
