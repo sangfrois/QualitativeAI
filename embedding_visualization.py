@@ -10,7 +10,7 @@ import pandas as pd # Import pandas
 def preprocess_audio_chunk(audio_chunk, sampling_rate, feature_extractor):
     audio_array = audio_chunk
 
-    max_length = int(feature_extractor.sampling_rate * max_duration)
+    max_length = int(feature_extractor.sampling_rate)
     if len(audio_array) > max_length:
         audio_array = audio_array[:max_length]
     else:
@@ -32,32 +32,17 @@ if __name__ == "__main__":
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_name, do_normalize=True)
     id2label = model.config.id2label
 
+    # Save emotion results to CSV
+    emotion_df = pd.DataFrame(columns=['emotion', 'timestamp'])
+
     audio_filepath = 'data/psilocybin/audio/Kesem_00.mp4' # Changed to .mp4
     embeddings_filepath = 'data/embeddings/whisper_chunked_mean_pca_embeddings.npy' # Path to save/load embeddings
     emotion_results_filepath = 'data/emotion_results.csv' # Path to save emotion results
-    max_duration = 600.0
+    max_duration = 30.0
     n_components_pca = 10 # Number of PCA components
 
-    print("Preprocessing audio and performing emotion inference...") # Indicate preprocessing start
+    print("Preprocessing audio...") # Indicate preprocessing start
     audio_array, sr = librosa.load(audio_filepath, sr=feature_extractor.sampling_rate) # Load audio once
-    inputs = preprocess_audio_chunk(audio_array, feature_extractor.sampling_rate, feature_extractor) # Preprocess once
-    inputs = {key: value.to(device) for key, value in inputs.items()}
-    with torch.no_grad():
-        outputs = model(**inputs) # Emotion inference once
-    logits = outputs.logits
-    predicted_id = torch.argmax(logits, dim=-1).item()
-    predicted_label = id2label[predicted_id]
-
-    # Save emotion results to CSV
-    emotion_df = pd.DataFrame({
-        'filename': [os.path.basename(audio_filepath)],
-        'predicted_emotion': [predicted_label]
-    })
-    if os.path.exists(emotion_results_filepath):
-        existing_emotion_df = pd.read_csv(emotion_results_filepath)
-        emotion_df = pd.concat([existing_emotion_df, emotion_df], ignore_index=True)
-    emotion_df.to_csv(emotion_results_filepath, index=False)
-    print(f"Emotion results saved to {emotion_results_filepath}") # Confirmation message
 
     if os.path.exists(embeddings_filepath):
         print(f"Loading embeddings from {embeddings_filepath}")
@@ -80,6 +65,16 @@ if __name__ == "__main__":
 
             with torch.no_grad():
                 outputs = model(**inputs, output_hidden_states=True)
+            # perform inference
+
+            logits = outputs.logits
+            predicted_id = torch.argmax(logits, dim=-1).item()
+            predicted_label = id2label[predicted_id]
+            emotion_df = emotion_df.append({'timestamp': start_sample / sr,
+                                             'emotion': predicted_label}, ignore_index=True)
+            emotion_df.to_csv(emotion_results_filepath, index=False)
+            print(f"Emotion  {emotion_results_filepath}") # Confirmation message
+
             hidden_states = outputs.hidden_states[-1]
             chunk_embeddings = hidden_states.squeeze(0).cpu().numpy()
 
