@@ -48,7 +48,7 @@ def load_emotion_results(emotion_results_filepath):
     try:
         if not os.path.exists(emotion_results_filepath):
             raise FileNotFoundError(f"Emotion results file not found: {emotion_results_filepath}")
-        emotion_df = pd.read_csv(emotion_results_filepath)
+        emotion_df = pd.read_csv(emotion_results_filepath, sep=',') # Explicitly set delimiter to comma
         print(f"Emotion results loaded successfully from {emotion_results_filepath}") # Debug print
         return emotion_df
     except FileNotFoundError as e:
