@@ -73,33 +73,42 @@ def align_sentiments_to_embeddings(embeddings, all_sentiments, chunk_duration=30
 
 
 def compute_correlation(embeddings, aligned_sentiments):
-    """Computes Pearson correlation between each PCA component and aligned sentiment."""
+    """Computes Pearson correlation and p-value between each PCA component and aligned sentiment."""
     num_components = embeddings.shape[1]
     correlations = []
+    p_values = []
     for i in range(num_components):
         component_embedding = embeddings[:, i]
         # Handle NaN values in sentiment by using only non-NaN pairs
         valid_indices = ~np.isnan(aligned_sentiments)
         if np.sum(valid_indices) < 2: # Need at least 2 points for correlation
             correlation = np.nan # Not enough valid data points
+            p_value = np.nan
         else:
-            correlation, _ = pearsonr(component_embedding[valid_indices], np.array(aligned_sentiments)[valid_indices])
+            correlation, p_value = pearsonr(component_embedding[valid_indices], np.array(aligned_sentiments)[valid_indices])
         correlations.append(correlation)
-    return correlations
+        p_values.append(p_value)
+    return correlations, p_values
 
-def plot_correlation(correlations, n_components_pca):
-    """Plots the correlation coefficients for each PCA component."""
+def plot_correlation(correlations, p_values, n_components_pca):
+    """Plots the correlation coefficients and p-values for each PCA component."""
     plt.figure(figsize=(10, 6))
     components = range(1, n_components_pca + 1)
-    plt.bar(components, correlations)
+    bars = plt.bar(components, correlations)
     plt.xlabel("PCA Component")
     plt.ylabel("Pearson Correlation with Sentiment")
-    plt.title("Correlation between PCA Components and Sentiment")
+    plt.title("Correlation between PCA Components and Sentiment with Significance")
     plt.xticks(components)
     plt.grid(axis='y')
+
+    # Annotate bars with p-values
+    for bar, p_value in zip(bars, p_values):
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2, yval + 0.01, f"p={p_value:.3f}", ha='center', va='bottom', fontsize=8)
+
     plt.savefig("pca_sentiment_correlation.png")
     plt.close()
-    print("Correlation plot saved as pca_sentiment_correlation.png")
+    print("Correlation plot with p-values saved as pca_sentiment_correlation.png")
 
 
 def main():
@@ -117,13 +126,13 @@ def main():
             embeddings = load_embeddings(embeddings_filepath) # Load embeddings for the current file
             aligned_sentiments = align_sentiments_to_embeddings(embeddings, all_sentiments) # Pass all_sentiments (consider adjusting this if needed per file)
 
-            correlations = compute_correlation(embeddings, aligned_sentiments)
+            correlations, p_values = compute_correlation(embeddings, aligned_sentiments) # Get p-values as well
 
-            print(f"\nCorrelation coefficients between PCA components and sentiment for {base_filename}:")
-            for i, corr in enumerate(correlations):
-                print(f"PCA Component {i+1}: {corr:.3f}")
+            print(f"\nCorrelation coefficients and p-values between PCA components and sentiment for {base_filename}:")
+            for i, (corr, p_val) in enumerate(zip(correlations, p_values)):
+                print(f"PCA Component {i+1}: Correlation = {corr:.3f}, p-value = {p_val:.3f}")
 
-            plot_correlation(correlations, n_components_pca) # This will overwrite the plot for each file, consider unique filenames if needed
+            plot_correlation(correlations, p_values, n_components_pca) # Pass p_values to plotting function
 
 
     except FileNotFoundError as e:
