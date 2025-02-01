@@ -102,7 +102,7 @@ def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150)
     for utterances in transcripts.values():
         all_speakers.update(utterance['speaker'] for utterance in utterances)
 
-    color_map = {'Patient': 'red', 'Interviewer': 'blue'} # Define colors for Patient and Interviewer
+    color_map = {'Patient': 'blue', 'Interviewer': 'green'}
     other_speakers = sorted([speaker for speaker in all_speakers if speaker not in ['Patient', 'Interviewer']])
     colors = plt.cm.rainbow(np.linspace(0, 1, len(other_speakers)+1))
     color_map.update(dict(zip(other_speakers, colors)))
