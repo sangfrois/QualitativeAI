@@ -66,6 +66,8 @@ if __name__ == "__main__":
 
             # Append emotion result to DataFrame, including filename
             emotion_df.loc[len(emotion_df)] = [filename, predicted_label, start_sample / sr]
+            emotion_results_filepath = 'data/emotion_results.csv' # Path to save combined emotion results
+            emotion_df.to_csv(emotion_results_filepath, index=False)
 
             hidden_states = outputs.hidden_states[-1]
             chunk_embeddings = hidden_states.squeeze(0).cpu().numpy()
@@ -93,6 +95,5 @@ if __name__ == "__main__":
         print(f"Heatmap of Whisper embeddings (PCA components) saved as {heatmap_filepath}")
         print(f"Predicted emotion for {filename}: {predicted_label}") # Use last predicted label, consider averaging or majority vote if needed
 
-    emotion_results_filepath = 'data/emotion_results.csv' # Path to save combined emotion results
-    emotion_df.to_csv(emotion_results_filepath, index=False) # Save all emotion results to a single CSV
+ # Save all emotion results to a single CSV
     print(f"Emotion results for all files saved to {emotion_results_filepath}")
