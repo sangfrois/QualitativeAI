@@ -29,8 +29,11 @@ if __name__ == "__main__":
 
     audio_dir = 'data/psilocybin/audio/' # Directory containing audio files
     audio_files = glob.glob(os.path.join(audio_dir, '*.mp4')) # Get all .mp4 files
+    num_files = len(audio_files)
 
-    for audio_filepath in audio_files: # Loop through each audio file
+    fig, axes = plt.subplots(nrows=num_files, ncols=1, figsize=(12, 6 * num_files)) # Create subplots
+
+    for idx, audio_filepath in enumerate(audio_files): # Loop through each audio file with index
         filename = os.path.basename(audio_filepath).split('.')[0]
         embeddings_filepath = os.path.join('data', 'embeddings', f'whisper_chunked_mean_pca_embeddings_{filename}.npy') # Unique embeddings file for each audio
         heatmap_filepath = f"whisper_chunked_mean_pca_heatmap_{filename}.png" # Unique heatmap file for each audio
@@ -81,19 +84,24 @@ if __name__ == "__main__":
         all_embeddings[filename] = mean_pca_embeddings_concatenated # Store embeddings in dictionary
         np.save(embeddings_filepath, mean_pca_embeddings_concatenated)
 
-        # Plotting Heatmap for each file
-        plt.figure(figsize=(12, 6))
-        plt.imshow(mean_pca_embeddings_concatenated.T, aspect='auto', origin='lower', interpolation='nearest', cmap='viridis')
-        plt.colorbar(format='%+2.0f')
-        plt.xlabel("Time Chunk Index (30s chunks with 50% overlap)")
-        plt.ylabel("Mean PCA Component")
-        plt.yticks(np.arange(n_components_pca), [f'PC{i+1}' for i in range(n_components_pca)])
-        plt.title(f"Heatmap of Mean PCA Embeddings - {filename}")
-        plt.savefig(heatmap_filepath)
-        plt.close()
+        # Plotting Heatmap in subplot
+        ax = axes[idx] # Select current subplot
+        im = ax.imshow(mean_pca_embeddings_concatenated.T, aspect='auto', origin='lower', interpolation='nearest', cmap='viridis')
+        fig.colorbar(im, ax=ax, format='%+2.0f') # Add colorbar to subplot
+        ax.set_xlabel("Time Chunk Index (30s chunks with 50% overlap)")
+        ax.set_ylabel("Mean PCA Component")
+        ax.set_yticks(np.arange(n_components_pca))
+        ax.set_yticklabels([f'PC{i+1}' for i in range(n_components_pca)])
+        ax.set_title(f"Heatmap of Mean PCA Embeddings - {filename}")
 
-        print(f"Heatmap of Whisper embeddings (PCA components) saved as {heatmap_filepath}")
+
+        print(f"Heatmap of Whisper embeddings (PCA components) saved for {filename}")
         print(f"Predicted emotion for {filename}: {predicted_label}") # Use last predicted label, consider averaging or majority vote if needed
+
+    plt.tight_layout()
+    plt.savefig("whisper_chunked_mean_pca_heatmap_all_files.png") # Save figure with all subplots
+    plt.close()
+
 
  # Save all emotion results to a single CSV
     print(f"Emotion results for all files saved to {emotion_results_filepath}")
