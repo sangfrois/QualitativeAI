@@ -8,19 +8,9 @@ from sklearn.decomposition import PCA
 import pandas as pd # Import pandas
 
 def preprocess_audio_chunk(audio_chunk, sampling_rate, feature_extractor):
-    audio_array = audio_chunk
-
-    max_length = int(feature_extractor.sampling_rate)
-    if len(audio_array) > max_length:
-        audio_array = audio_array[:max_length]
-    else:
-        audio_array = np.pad(audio_array, (0, max_length - len(audio_array)))
-
     inputs = feature_extractor(
-        audio_array,
-        sampling_rate=feature_extractor.sampling_rate,
-        max_length=max_length,
-        truncation=True,
+        audio_chunk,
+        sampling_rate=sampling_rate, # Use the provided sampling_rate
         return_tensors="pt",
     )
     return inputs
