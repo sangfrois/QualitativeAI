@@ -141,6 +141,8 @@ def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150)
             emotions_for_plot = aligned_emotions.get(file, []) # Use .get() to avoid KeyError if file not in aligned_emotions
             emotion_df = pd.DataFrame(emotions_for_plot)
 
+            emotions_in_legend = set() # Keep track of emotions already in legend
+
             for speaker in df['speaker'].unique():
                 speaker_data = df[df['speaker'] == speaker]
                 speaker_data['smoothed_sentiment'] = speaker_data['sentiment'].rolling(window=smoothing_window, min_periods=1, center=True).mean() # Apply smoothing
@@ -155,12 +157,11 @@ def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150)
                         sentiment_value = speaker_data[speaker_data['sequence'] == sequence_to_mark]['smoothed_sentiment'].iloc[0] # Get sentiment at that sequence
                         marker = emotion_markers.get(emotion_label, 'x') # Default marker if emotion not in dict
                         markercolor = emotion_colors.get(emotion_label, 'black') # Default color if emotion not in dict
-                        legend_obj = ax.get_legend()
-                        if legend_obj is not None and legend_obj.get_title() is not None and "Speaker" in legend_obj.get_title().get_text():
-                            should_label_emotion = emotion_label not in [text.get_text() for text in legend_obj.get_texts()]
+                        if emotion_label not in emotions_in_legend: # Check if emotion already in legend
+                            plt.scatter(sequence_to_mark, sentiment_value, marker=marker, color=markercolor, s=50, label=f"Emotion: {emotion_label}") # Add marker and label
+                            emotions_in_legend.add(emotion_label) # Add emotion to set
                         else:
-                            should_label_emotion = True # If no legend or no title, always label first emotion
-                        plt.scatter(sequence_to_mark, sentiment_value, marker=marker, color=markercolor, s=50, label=f"Emotion: {emotion_label}" if should_label_emotion else None) # Add marker, label only once per emotion
+                            plt.scatter(sequence_to_mark, sentiment_value, marker=marker, color=markercolor, s=50) # Add marker without label
 
 
             plt.title(f"Sentiment Analysis - {file}")
