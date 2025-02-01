@@ -155,7 +155,7 @@ def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150)
                         sentiment_value = speaker_data[speaker_data['sequence'] == sequence_to_mark]['smoothed_sentiment'].iloc[0] # Get sentiment at that sequence
                         marker = emotion_markers.get(emotion_label, 'x') # Default marker if emotion not in dict
                         markercolor = emotion_colors.get(emotion_label, 'black') # Default color if emotion not in dict
-                        plt.scatter(sequence_to_mark, sentiment_value, marker=marker, color=markercolor, s=50, label=f"Emotion: {emotion_label}" if emotion_label not in [label.split(': ')[1] for label in ax.get_legend_text()] else None) # Add marker, label only once per emotion
+                        plt.scatter(sequence_to_mark, sentiment_value, marker=marker, color=markercolor, s=50, label=f"Emotion: {emotion_label}" if emotion_label not in [text.get_text() for text in ax.get_legend().get_texts()] else None) # Add marker, label only once per emotion
 
 
             plt.title(f"Sentiment Analysis - {file}")
