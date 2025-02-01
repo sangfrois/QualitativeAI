@@ -155,7 +155,12 @@ def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150)
                         sentiment_value = speaker_data[speaker_data['sequence'] == sequence_to_mark]['smoothed_sentiment'].iloc[0] # Get sentiment at that sequence
                         marker = emotion_markers.get(emotion_label, 'x') # Default marker if emotion not in dict
                         markercolor = emotion_colors.get(emotion_label, 'black') # Default color if emotion not in dict
-                        plt.scatter(sequence_to_mark, sentiment_value, marker=marker, color=markercolor, s=50, label=f"Emotion: {emotion_label}" if ax.get_legend() is not None and emotion_label not in [text.get_text() for text in ax.get_legend().get_texts()] else None) # Add marker, label only once per emotion
+                        legend_obj = ax.get_legend()
+                        if legend_obj is not None and legend_obj.get_title() is not None and "Speaker" in legend_obj.get_title().get_text():
+                            should_label_emotion = emotion_label not in [text.get_text() for text in legend_obj.get_texts()]
+                        else:
+                            should_label_emotion = True # If no legend or no title, always label first emotion
+                        plt.scatter(sequence_to_mark, sentiment_value, marker=marker, color=markercolor, s=50, label=f"Emotion: {emotion_label}" if should_label_emotion else None) # Add marker, label only once per emotion
 
 
             plt.title(f"Sentiment Analysis - {file}")
@@ -168,20 +173,25 @@ def plot_sentiment_analysis(transcripts, aligned_emotions, smoothing_window=150)
             by_label = dict()
             sentiment_handles = []
             emotion_handles = []
-            for handle, label in zip(handles, labels):
-                if "Speaker" in ax.get_legend().get_title().get_text() and "Speaker" in label: # Check if legend title is "Speaker"
-                    if label not in by_label and "Speaker" in label:
-                        by_label[label] = handle
-                        sentiment_handles.append((handle, label))
-                elif "Emotion" in label:
-                    emotion_name = label.split(': ')[1]
-                    if emotion_name not in [l.split(': ')[1] for _, l in emotion_handles]: # Avoid duplicate emotion labels
-                        emotion_handles.append((handle, label))
+            legend_obj = ax.get_legend()
+            if legend_obj is not None and legend_obj.get_title() is not None and "Speaker" in legend_obj.get_title().get_text():
+                for handle, label in zip(handles, labels):
+                    if "Speaker" in label:
+                        if label not in by_label and "Speaker" in label:
+                            by_label[label] = handle
+                            sentiment_handles.append((handle, label))
+                    elif "Emotion" in label:
+                        emotion_name = label.split(': ')[1]
+                        if emotion_name not in [l.split(': ')[1] for _, l in emotion_handles]: # Avoid duplicate emotion labels
+                            emotion_handles.append((handle, label))
 
-            # Combine sentiment and emotion legends
-            combined_handles_labels = [hl for hl in sentiment_handles] + [hl for hl in emotion_handles]
-            final_handles, final_labels = zip(*combined_handles_labels) if combined_handles_labels else ([], [])
-            plt.legend(final_handles, final_labels, title="Legend", loc='best') # Updated legend title
+                # Combine sentiment and emotion legends
+                combined_handles_labels = [hl for hl in sentiment_handles] + [hl for hl in emotion_handles]
+                final_handles, final_labels = zip(*combined_handles_labels) if combined_handles_labels else ([], [])
+                plt.legend(final_handles, final_labels, title="Legend", loc='best') # Updated legend title
+            else:
+                plt.legend(loc='best') # If no speaker legend, just show any labels
+
 
         plt.tight_layout()
         plt.savefig("sentiment_and_emotion_analysis_smoothed.png", dpi=300) # Changed filename to indicate emotions
