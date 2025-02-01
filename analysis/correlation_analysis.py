@@ -103,23 +103,27 @@ def plot_correlation(correlations, n_components_pca):
 
 
 def main():
-    embeddings_filepath = 'data/embeddings/whisper_chunked_mean_pca_embeddings.npy' # Path to embeddings
-    json_files_path = 'data/psilocybin/processed/*01.json' # Path to processed transcript JSONs
+    json_files_path = 'data/psilocybin/processed/' # Path to processed transcript JSONs
     n_components_pca = 10 # Number of PCA components, should match embedding_visualization.py
 
     try:
-        embeddings = load_embeddings(embeddings_filepath)
         all_sentiments = load_transcripts_and_compute_sentiments(json_files_path) # Use the new function
 
-        aligned_sentiments = align_sentiments_to_embeddings(embeddings, all_sentiments) # Pass all_sentiments
+        # Assuming you want to process all JSON files and their corresponding embeddings
+        for json_filename in all_sentiments.keys():
+            base_filename = os.path.splitext(json_filename)[0] # Remove .json extension
+            embeddings_filepath = os.path.join('data', 'embeddings', f'whisper_chunked_mean_pca_embeddings_{base_filename}.npy') # Construct embeddings path
 
-        correlations = compute_correlation(embeddings, aligned_sentiments)
+            embeddings = load_embeddings(embeddings_filepath) # Load embeddings for the current file
+            aligned_sentiments = align_sentiments_to_embeddings(embeddings, all_sentiments) # Pass all_sentiments (consider adjusting this if needed per file)
 
-        print("\nCorrelation coefficients between PCA components and sentiment:")
-        for i, corr in enumerate(correlations):
-            print(f"PCA Component {i+1}: {corr:.3f}")
+            correlations = compute_correlation(embeddings, aligned_sentiments)
 
-        plot_correlation(correlations, n_components_pca)
+            print(f"\nCorrelation coefficients between PCA components and sentiment for {base_filename}:")
+            for i, corr in enumerate(correlations):
+                print(f"PCA Component {i+1}: {corr:.3f}")
+
+            plot_correlation(correlations, n_components_pca) # This will overwrite the plot for each file, consider unique filenames if needed
 
 
     except FileNotFoundError as e:
