@@ -58,28 +58,30 @@ def plot_sentiment_analysis(transcripts):
         df = df.dropna(subset=['sequence', 'sentiment'])
         df = df.sort_values('sequence')
 
-        timestamps = []
-        for idx, row in df.iterrows():
-            if 'timestamp' in row['metadata'] and row['metadata']['timestamp']:
-                ts = row['metadata']['timestamp']
-                if 'start' in ts and ts['start'] is not None: # Check if start is not None
-                    timestamps.append((row['sequence'], ts['start']))
-                    start_seq = row['sequence']
-                    end_seq = row['sequence'] + 1
-                    plt.axvspan(start_seq, end_seq, color='gray', alpha=0.2, label='Timestamped Segment' if not plt.gca().get_legend() else None) # Label only once
+        # Removed timestamp related code
+        # timestamps = []
+        # for idx, row in df.iterrows():
+        #     if 'timestamp' in row['metadata'] and row['metadata']['timestamp']:
+        #         ts = row['metadata']['timestamp']
+        #         if 'start' in ts and ts['start'] is not None: # Check if start is not None
+        #             timestamps.append((row['sequence'], ts['start']))
+        #             start_seq = row['sequence']
+        #             end_seq = row['sequence'] + 1
+        #             plt.axvspan(start_seq, end_seq, color='gray', alpha=0.2, label='Timestamped Segment' if not plt.gca().get_legend() else None) # Label only once
 
 
         for speaker in df['speaker'].unique():
             speaker_data = df[df['speaker'] == speaker]
             plt.plot(speaker_data['sequence'], speaker_data['sentiment'], marker='o', linestyle='-', label=speaker, color=color_map[speaker])
 
-        if timestamps:
-            tick_positions, tick_labels = zip(*timestamps)
-            tick_labels = [f"{float(ts):.2f}" for ts in tick_labels] # Format timestamps to 2 decimal places
-            plt.xticks(tick_positions, tick_labels, rotation=45, ha='right') # Rotate and align x-axis labels
+        # Removed timestamp related code
+        # if timestamps:
+        #     tick_positions, tick_labels = zip(*timestamps)
+        #     tick_labels = [f"{float(ts):.2f}" for ts in tick_labels] # Format timestamps to 2 decimal places
+        #     plt.xticks(tick_positions, tick_labels, rotation=45, ha='right') # Rotate and align x-axis labels
 
         plt.title(f"Sentiment Analysis - {file}")
-        plt.xlabel("Utterance Sequence (Time in Seconds Where Available)") # Updated X-axis label to seconds
+        plt.xlabel("Utterance Index") # Updated X-axis label to Utterance Index
         plt.ylabel("Sentiment Score")
 
         # Get existing legend handles and labels to avoid duplicates
