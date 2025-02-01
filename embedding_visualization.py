@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from sklearn.decomposition import PCA
+import pandas as pd # Import pandas
 
 def preprocess_audio_chunk(audio_chunk, sampling_rate, feature_extractor):
     audio_array = audio_chunk
@@ -33,15 +34,36 @@ if __name__ == "__main__":
 
     audio_filepath = 'data/psilocybin/audio/Kesem_00.mp4' # Changed to .mp4
     embeddings_filepath = 'data/embeddings/whisper_chunked_mean_pca_embeddings.npy' # Path to save/load embeddings
+    emotion_results_filepath = 'data/emotion_results.csv' # Path to save emotion results
     max_duration = 600.0
     n_components_pca = 10 # Number of PCA components
+
+    print("Preprocessing audio and performing emotion inference...") # Indicate preprocessing start
+    audio_array, sr = librosa.load(audio_filepath, sr=feature_extractor.sampling_rate) # Load audio once
+    inputs = preprocess_audio_chunk(audio_array, feature_extractor.sampling_rate, feature_extractor) # Preprocess once
+    inputs = {key: value.to(device) for key, value in inputs.items()}
+    with torch.no_grad():
+        outputs = model(**inputs) # Emotion inference once
+    logits = outputs.logits
+    predicted_id = torch.argmax(logits, dim=-1).item()
+    predicted_label = id2label[predicted_id]
+
+    # Save emotion results to CSV
+    emotion_df = pd.DataFrame({
+        'filename': [os.path.basename(audio_filepath)],
+        'predicted_emotion': [predicted_label]
+    })
+    if os.path.exists(emotion_results_filepath):
+        existing_emotion_df = pd.read_csv(emotion_results_filepath)
+        emotion_df = pd.concat([existing_emotion_df, emotion_df], ignore_index=True)
+    emotion_df.to_csv(emotion_results_filepath, index=False)
+    print(f"Emotion results saved to {emotion_results_filepath}") # Confirmation message
 
     if os.path.exists(embeddings_filepath):
         print(f"Loading embeddings from {embeddings_filepath}")
         mean_pca_embeddings_concatenated = np.load(embeddings_filepath)
     else:
         print("Computing chunked embeddings...")
-        audio_array, sr = librosa.load(audio_filepath, sr=feature_extractor.sampling_rate)
         chunk_duration = 10.0  # seconds
         overlap_ratio = 0.5
         chunk_samples = int(chunk_duration * feature_extractor.sampling_rate)
@@ -49,7 +71,7 @@ if __name__ == "__main__":
         step_samples = chunk_samples - overlap_samples
 
         mean_pca_embeddings_list = []
-        for start_sample in range(0, len(audio_array) - chunk_samples + 1, step_samples):
+        for start_sample in range(0, len(audio_array) - chunk_samples + 1, step_samples): # Use pre-loaded audio_array
             end_sample = start_sample + chunk_samples
             audio_chunk = audio_array[start_sample:end_sample]
 
@@ -69,14 +91,6 @@ if __name__ == "__main__":
         mean_pca_embeddings_concatenated = np.array(mean_pca_embeddings_list)
         np.save(embeddings_filepath, mean_pca_embeddings_concatenated) # Save embeddings
 
-    # Emotion Inference (on the whole audio as before for comparison)
-    inputs = preprocess_audio_chunk(audio_array, feature_extractor.sampling_rate, feature_extractor) # Need to preprocess again for emotion inference
-    inputs = {key: value.to(device) for key, value in inputs.items()}
-    with torch.no_grad():
-        outputs = model(**inputs) # No need for hidden states here, just logits
-    logits = outputs.logits
-    predicted_id = torch.argmax(logits, dim=-1).item()
-    predicted_label = id2label[predicted_id]
     # Plotting concatenated mean PCA embeddings as Heatmap
     plt.figure(figsize=(12, 6))
     plt.imshow(mean_pca_embeddings_concatenated.T, aspect='auto', origin='lower', interpolation='nearest', cmap='viridis')
@@ -89,4 +103,4 @@ if __name__ == "__main__":
     plt.close()
 
     print("Heatmap of Whisper embeddings (PCA components) saved as whisper_chunked_mean_pca_heatmap.png") # Updated print message
-    print(f"{predicted_label} emotion detected from audio file.")
+    print(f"Predicted emotion from audio file: {predicted_label}") # Use pre-computed predicted_label
