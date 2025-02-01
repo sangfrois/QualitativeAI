@@ -64,15 +64,20 @@ if __name__ == "__main__":
     predicted_id = torch.argmax(logits, dim=-1).item()
     predicted_label = id2label[predicted_id]
 
-    # Heatmap of PCA Reduced Embeddings
-    plt.figure(figsize=(12, 8))
-    plt.imshow(reduced_embeddings.T, aspect='auto', origin='lower', interpolation='nearest', cmap='viridis') # Use PCA reduced embeddings
-    plt.colorbar(format='%+2.0f dB')
+    # Plotting PCA Components as Time Series
+    plt.figure(figsize=(12, 6))
+    time_steps = np.arange(reduced_embeddings.shape[0])
+
+    for i in range(n_components_pca):
+        plt.plot(time_steps, reduced_embeddings[:, i], label=f'PCA Component {i+1}')
+
     plt.xlabel("Time Step (Audio Frames)")
-    plt.ylabel(f"PCA Components (Top {n_components_pca})") # Updated Y-axis label
-    plt.title(f"Heatmap of Whisper Embeddings (PCA - Top {n_components_pca} Components)") # Updated title
-    plt.savefig("whisper_embeddings_pca_heatmap.png") # Updated filename
+    plt.ylabel("PCA Component Value")
+    plt.title(f"Time Series of Top {n_components_pca} PCA Components of Whisper Embeddings")
+    plt.legend(loc='upper right')
+    plt.grid(True)
+    plt.savefig("whisper_embeddings_pca_timeseries.png") # Changed filename to timeseries
     plt.close()
 
-    print("Heatmap of Whisper embeddings (PCA reduced) saved as whisper_embeddings_pca_heatmap.png") # Updated print message
+    print("Time series plot of Whisper embeddings (PCA components) saved as whisper_embeddings_pca_timeseries.png") # Updated print message
     print(f"{predicted_label} emotion detected from audio file.")
