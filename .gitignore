@@ -2,5 +2,6 @@
 data/psilocybin/*
 data/ketamine/*
 data/*.csv
+data/embeddings/*
 *.png
 
