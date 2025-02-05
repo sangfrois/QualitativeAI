@@ -1,5 +1,6 @@
 .aider*
-./data/psilocybin/*
-./data/ketamine/*
+data/psilocybin/*
+data/ketamine/*
+data/*.csv
 *.png
 
