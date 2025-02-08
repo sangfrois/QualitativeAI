@@ -1,112 +1,113 @@
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
-import matplotlib.pyplot as plt
-import seaborn as sns
+import re
+from typing import List, Dict
 import json
-import pandas as pd
-import numpy as np
-from scipy.interpolate import make_interp_spline
+from docx import Document
+import os
 
-def load_transcript(file_path):
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def analyze_sentiment(text):
-    sia = SentimentIntensityAnalyzer()
-    return sia.polarity_scores(text)['compound']
-
-def standardize_speaker(speaker):
-    speaker = speaker.strip().rstrip(':')
-    if speaker.startswith('Interviewer'):
-        parts = speaker.split()
-        if len(parts) > 1 and parts[1].isdigit():
-            return f'Interviewer {parts[1]}'
-        return 'Interviewer'
-    return 'Patient' if speaker.lower().startswith('patient') else speaker
-
-def process_transcript(transcript):
-    for utterance in transcript:
-        utterance['sentiment'] = analyze_sentiment(utterance['text'])
-        utterance['speaker'] = standardize_speaker(utterance['speaker'])
-    return transcript
-
-def plot_sentiment_analysis(transcripts):
-    plt.figure(figsize=(20, 15))
+def read_word_document(file_path: str) -> List[str]:
+    """Read text from a Microsoft Word document."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Word document not found at: {file_path}")
     
-    all_speakers = set()
-    for utterances in transcripts.values():
-        all_speakers.update(utterance['speaker'] for utterance in utterances)
+    doc = Document(file_path)
+    paragraphs = [paragraph.text.strip() for paragraph in doc.paragraphs if paragraph.text.strip()]
     
-    color_map = {'Patient': 'red'}
-    other_speakers = sorted([speaker for speaker in all_speakers if speaker != 'Patient'])
-    colors = plt.cm.rainbow(np.linspace(0, 1, len(other_speakers)+1))
-    color_map.update(dict(zip(other_speakers, colors)))
+    # Remove first entry if it looks like a file label
+    if paragraphs and re.match(r'KET-\d{3}-\d{2}', paragraphs[0]):
+        paragraphs.pop(0)
     
-    for i, (file, utterances) in enumerate(transcripts.items(), 1):
-        plt.subplot(3, 2, i)
-        df = pd.DataFrame(utterances)
-        df['sequence'] = pd.to_numeric(df['sequence'], errors='coerce')
-        df = df.dropna(subset=['sequence', 'sentiment'])
-        df = df.sort_values('sequence')
-        
-        timestamps = []
-        for idx, row in df.iterrows():
-            if 'timestamp' in row['metadata'] and row['metadata']['timestamp']:
-                ts = row['metadata']['timestamp']
-                if 'start' in ts and ts['start']:
-                    timestamps.append((row['sequence'], ts['start']))
-                    start_seq = row['sequence']
-                    end_seq = row['sequence'] + 1 if 'end' not in ts or ts['end'] is None else row['sequence'] + 2
-                    plt.axvspan(start_seq, end_seq, color='gray', alpha=0.2)
-        
-        for speaker in df['speaker'].unique():
-            speaker_data = df[df['speaker'] == speaker]
-            x = speaker_data['sequence'].to_numpy()
-            y = speaker_data['sentiment'].to_numpy()
-            if len(x) > 3:
-                x_smooth = np.linspace(x.min(), x.max(), 300)
-                y_smooth = make_interp_spline(x, y, k=3)(x_smooth)
-                plt.plot(x_smooth, y_smooth, label=speaker, color=color_map[speaker])
-            else:
-                plt.plot(x, y, marker='o', linestyle='-', label=speaker, color=color_map[speaker])
-        
-        if timestamps:
-            tick_positions, tick_labels = zip(*timestamps)
-            plt.xticks(tick_positions, tick_labels, rotation=45)
-        
-        plt.title(f"Sentiment Analysis - {file}")
-        plt.xlabel("Sequence (Corresponding to Time)")
-        plt.ylabel("Sentiment Score")
-        plt.legend(title="Speaker", loc='best')
+    return paragraphs
+
+def extract_speaker(text: str):
+    """Extract speaker label from text, even if it appears after a timestamp."""
+    match = re.match(r'^(Patient|Interviewer(?:\s*\d*))\s*:\s*(.*)', text)
+    if match:
+        return match.group(1).strip(), match.group(2).strip()
+    match = re.search(r'(Patient|Interviewer(?:\s*\d*))\s*:\s*(.*)', text)
+    if match:
+        return match.group(1).strip(), match.group(2).strip()
+    return None, text.strip()
+
+def parse_timestamp(text: str) -> Dict:
+    """Extract timestamps from text."""
+    patterns = [
+        r'\[(Silence|Inaudible|Distant conversation|Shuffling, silence)\s+(\d{1,2}:\d{2}(?::\d{2})?)(?:\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?))?\]',
+        r'End of recording (\d{1,2}:\d{2}(?::\d{2})?)'
+    ]
     
-    plt.tight_layout()
-    plt.savefig("sentiment_analysis_time.png", dpi=300)
-    plt.close()
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return {
+                "type": match.group(1).capitalize(),
+                "start": match.group(2) if len(match.groups()) > 1 else None,
+                "end": match.group(3) if len(match.groups()) > 2 else None
+            }
+    return None
+
+def parse_transcript(paragraphs: List[str]) -> List[Dict]:
+    """Parse a transcript and return structured utterances."""
+    utterances = []
+    sequence = 0
+    current_speaker = None
+    
+    for paragraph in paragraphs:
+        # Extract timestamp first to prevent interference with speaker extraction
+        timestamp = parse_timestamp(paragraph)
+        text_cleaned = re.sub(r'\[.*?\]', '', paragraph).strip()
+        
+        # Extract speaker properly (after cleaning timestamp from text)
+        speaker, text = extract_speaker(text_cleaned)
+        if speaker:
+            current_speaker = speaker
+        elif current_speaker:
+            speaker = current_speaker  # Retain previous speaker if none found
+        
+        utterance = {
+            "sequence": sequence,
+            "speaker": speaker,
+            "text": text.strip() if text else "",
+            "metadata": {}
+        }
+        
+        if timestamp:
+            utterance["metadata"]["timestamp"] = timestamp
+        
+        if utterance['text'] or utterance['speaker']:
+            utterances.append(utterance)
+            sequence += 1
+
+    return utterances
+
+def process_word_transcript(word_file: str, output_file: str) -> List[Dict]:
+    """Process a Word document transcript and save to JSON."""
+    try:
+        paragraphs = read_word_document(word_file)
+        utterances = parse_transcript(paragraphs)
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(utterances, f, indent=2, ensure_ascii=False)
+        
+        return utterances
+    except Exception as e:
+        print(f"Error processing transcript: {str(e)}")
+        raise
 
 def main():
-    json_files = ['transcript_01_time.json', 'transcript_03_time.json', 'transcript_04_time.json', 'transcript_05_time.json',
-'transcript_06_time.json']
-    transcripts = {}
+    input_file = "KET-047/KET-047-04.docx"  # Replace with your file path
+    output_file = "transcript_04_time.json"
     
-    for json_file in json_files:
-        try:
-            transcript = load_transcript(json_file)
-            processed_transcript = process_transcript(transcript)
-            transcripts[json_file] = processed_transcript
-            print(f"\nProcessed {json_file}:")
-            print(f"- Total utterances: {len(processed_transcript)}")
-            if processed_transcript:
-                print("\nSample of utterances with sentiment:")
-                for i, u in enumerate(processed_transcript[:5]):
-                    print(f"\n{i}. Speaker: {u['speaker']}")
-                    print(f"   Text: {u['text'][:50]}...")
-                    print(f"   Sentiment: {u['sentiment']:.2f}")
-        except Exception as e:
-            print(f"Error processing {json_file}: {str(e)}")
-    
-    plot_sentiment_analysis(transcripts)
-    print("\nSentiment analysis plot saved as sentiment_analysis_time.png")
+    try:
+        utterances = process_word_transcript(input_file, output_file)
+        
+        print(f"Processing complete. Total utterances: {len(utterances)}")
+        for i, u in enumerate(utterances[:5]):
+            print(f"\n{i}. Speaker: {u['speaker']}")
+            print(f"   Text: {u['text']}")
+            if 'metadata' in u and u['metadata']:
+                print(f"   Metadata: {u['metadata']}")
+    except Exception as e:
+        print(f"Error: {str(e)}")
 
 if __name__ == "__main__":
-    nltk.download('vader_lexicon')
     main()
